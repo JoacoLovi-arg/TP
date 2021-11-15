@@ -2,3 +2,23 @@ Les presento un pequeño análisis que publiqué en el marco de la Diplomatura S
 
 
 httpsrpubs.comJoaquinLovizio799813
+
+
+
+#cargamos una nueva libreria
+library(sf)
+
+#traigamos la informacion geografica de las comunas en caba
+comunas<-st_read("http://cdn.buenosaires.gob.ar/datosabiertos/datasets/comunas/CABA_comunas.geojson")%>%
+  mutate(comuna=as.factor(COMUNAS))
+
+#juntemos nuestra data para poder graficar, vamos a necesitar
+#que nos quede un objeto de tipo sf
+campanas_por_comuna<-left_join(comunas, campanas_por_comuna, by="comuna")
+
+#grafiquemos un mapa
+mapa_comunas<-ggplot(campanas_por_comuna, aes(fill=densidad))+
+  geom_sf()+
+  scale_fill_distiller("Cantidad de habitantes por campana", palette = "Reds", direction = 1)+
+  labs(title = "Densidad de campanas verdes")
+ggplotly(mapa_comunas)

@@ -1,5 +1,0 @@
-"0",""
-"0","plot_densidad<-ggplot(campanas_por_comuna, aes(x=poblacion, y=cantidad, color=comuna))+"
-"0","  geom_point(size=3)"
-"0",""
-"0","ggplotly(plot_densidad)"
