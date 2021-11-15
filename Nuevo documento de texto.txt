@@ -1,0 +1,4 @@
+Les presento un pequeño análisis que publiqué en el marco de la Diplomatura Superior en Ciencias Sociales Computacionales y Humanidades Digitales de la Universidad Nacional de San Martín usando datos abiertos del portal de  y procesando la info con R- Studio. El análisis trata sobre la distribución geográfica de los puntos de reciclado y campanas verdes en CABA, además de los gráficos hay un mapa interactivo y queda el código publicado para poder replicarlo yo mejorarlo. Cualquier duda o consulta es bienvenida!
+
+
+httpsrpubs.comJoaquinLovizio799813
