@@ -1,0 +1,211 @@
+---
+title: "Distribución de puntos reciclables en CABA"
+author: "Joaquin Lovizio Ramos"
+mail: "joaquin.lovizio@gmail.com"
+date: "17/08/2021"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+        colapsed: true
+
+# Separando residuos
+## Recolectando la data
+# Analizando
+## Campanas verdes por comuna
+## Campanas verdes por cantidad de habitantes
+## Campanas verdes por ubicación geográfica
+# Mapa interactivo
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Separando residuos
+
+Cuenta la leyenda que durante el Aislamiento Social Preventivo y Obligatorio del 2020, muchos habitantes de la ciudad de Buenos Aires incorporaron el hábito de separar residuos como conducta ecológica. En mi caso fue sencillo sumarme al movimiento "orgánico e inorgánico, asunto separado" ya que cerca de mi casa se ubican 2 Campanas Verdes (nombre prolijo de los contenedores para reciclables) y un Punto Verde. Pero un amigo, que también quiso empezar a separar residuos, me contó que le había costado encontrar un container verde cerca de su casa y que cuando quiso buscar en la página del GCBA se encontró con un excel inmenso que no pudo entender. En ese momento pensé, esta es una tarea para poner la ciencia de datos al servicio de la comunidad. Así que lo primero que pensé fue en armar un mapa interactivo, pero posteriormente algunas preguntas fueron surgiendo. 
+El siguiente es un pequeño análisis de la distribución de puntos reciclables en CABA y su relación con la distribución poblacional. 
+
+```{r, fig.align="center", echo=F}
+knitr::include_graphics('https://www.buenosaires.gob.ar/sites/gcaba/files/styles/interna_noticia/public/field/image/08072020-retoque_8219.jpg?itok=yMTf4fBn')
+
+```
+<center>
+_"Campanas verdes"_
+
+</center>
+```{r, fig.align="center", echo=F}
+knitr::include_graphics("http://www.comunidadrse.com.ar/wp-content/uploads/2018/01/img_6213.jpg")
+```
+<center>
+_"Puntos Verdes"_
+
+</center>
+
+## Recolectando la data
+
+Primero vamos a descargar la data a usar para el análisis, en principio en estos links
+
+https://data.buenosaires.gob.ar/dataset/campanas-verdes
+
+https://data.buenosaires.gob.ar/dataset/puntos-verdes/resource/juqdkmgo-1716-resource
+
+https://www.estadisticaciudad.gob.ar/eyc/?p=76599
+
+Y vamos a levantar los datasets con R 
+
+
+```{r levanto data, message=F}
+# install.packages("tidyverse")
+# install.packages("rgdal")
+# install.packages("readxl")
+library(tidyverse)
+library(rgdal)
+library(readxl)
+
+campanas_verdes<-read.csv("campanas-verdes.csv", encoding = "UTF-8")
+
+poblacion<-read_xlsx("PDE.xlsx", 
+                     sheet = "2020", 
+                     skip = 1)%>%
+  slice(3:17)%>%
+  rename("varones"="...3", 
+         "mujeres"="...4", "comuna"="Comuna", 
+         "superficie"="Superficie  (km2)", 
+         "poblacion"="Población")%>%
+  mutate(comuna=as.factor(comuna), 
+         poblacion=as.numeric(poblacion))
+
+```
+
+Exploremos un poco la estructura de la data levantada
+
+```{r}
+glimpse(campanas_verdes)
+glimpse(poblacion)
+```
+
+
+
+# Analizando
+
+## Cantidad de campanas verdes por comuna
+
+Veamos la distribucion de campanas por comuna 
+
+```{r, message=F}
+#armo un df con la data que voy a necesitar para graficar
+campanas_por_comuna<-campanas_verdes%>%
+  group_by(comuna)%>%
+  summarise(cantidad=n())%>%
+  mutate(comuna=as.factor(comuna))%>%
+  arrange(cantidad)
+
+
+#grafico el df
+plot_campanas_por_comuna<-ggplot(data = campanas_por_comuna, aes(x=reorder(comuna, cantidad),
+                                                                 y=cantidad,
+                                                                 fill=comuna))+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45))+
+  labs(title = "Cantidad de campanas verdes por comuna",
+       x= "comuna",
+       fill= "comuna")+
+  geom_bar(stat = "identity", position = "identity")+
+  coord_flip()
+
+#meto un plotly para que sea interactivo
+library(plotly)
+ggplotly(plot_campanas_por_comuna,tooltip = c("cantidad", "comuna"))
+```
+
+Bien! Ya tenemos nuestros primeros datos. En principio vemos que las comunas que tienen mayor cantidad de campanas verdes son las 13, 12 y 10 y las que menor cantidad tienen son la 2, 3 y 1. Pero esta informacion mucho no nos dice. Veamos la cantidad de campanas verdes por habitante de cada comuna, así podemos ver la densidad de campanas verdes. 
+
+
+## Cantidad de campanas verdes según cantidad de habitantes
+
+```{r }
+#junto la data
+campanas_por_comuna<-campanas_por_comuna%>%
+  inner_join(poblacion, campanas_por_comuna, by="comuna")%>%
+  mutate(densidad=round(poblacion/cantidad, digits = 0))
+
+```
+
+```{r, echo=F}
+
+knitr::kable(campanas_por_comuna)
+
+```
+
+Grafico para entender la distribución de campanas verdes por comuna 
+```{r, message=F}
+
+plot_densidad<-ggplot(campanas_por_comuna, aes(x=poblacion, y=cantidad, color=comuna, lab1=densidad))+
+  geom_point(size=3)+
+  theme_minimal()+
+  labs(title = "Cantidad de campanas verdes según cantidad de habitantes")
+  
+
+ggplotly(plot_densidad, tooltip = c("cantidad", "comuna", "densidad"))
+            
+```
+
+Bueno ahora tenemos un poco más de información. En principio uno esperaría que el gráfico tuviera una forma de pendiente desde el rincón inferior izquierdo hasta el superior derecho, es decir que a mayor cantidad de habitantes (asumiendo que cada habitante produce una cantidad de residuos similar), mayor cantidad de campanas verdes. Pero esto no es lo que sucede, por ejemplo vemos que la comuna 1 es la que peor relación presenta entre cantidad de población y cantidad de campanas verdes disponibles. 
+El gráfico no está mal, pero tratemos de ver la info con un poco mas de detalle, y para esto nada mejor que un mapa
+
+## Densidad de campanas verdes
+
+
+```{r, message=F}
+#cargamos una nueva libreria que nos va a permitir manipular datasets con info geográfica
+library(sf)
+
+#traigamos la informacion geografica de las comunas en caba
+mapa_caba_link<-read_sf("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/perimetro/perimetro.geojson")
+campanas_verdes_geo<-st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/subsecretaria-de-higiene-urbana/campanas-verdes/campanas-verdes.geojson")
+
+#vamos a necesitar separar los valores de las coordenadas de cada campana
+campanas_verdes_coords_separadas <- campanas_verdes_geo %>%
+  mutate(lat = unlist(map(geometry,1)),
+         long = unlist(map(geometry,2)))
+
+#grafiquemos el mapa de calor
+plot_calor<-ggplot()+
+  geom_sf(data=mapa_caba_link)+
+  geom_density2d_filled(data = campanas_verdes_coords_separadas, aes(x=lat, y=long), alpha=0.5)+
+  theme_minimal()+
+  labs(title = "Densidad de campanas verdes")
+plot_calor
+
+
+```
+
+
+# Mapa interactivo
+
+Por último armemos el mapa que necesitaba mi amigo para poder ubicar los puntos verdes cerca de su casa. Vamos a agregar también la info de los Puntos Verdes. Ahora cualquier persona puede consultarlo!
+
+```{r,message=F}
+
+library(leaflet)
+campanas_verdes_shp<-readOGR("contenedores_verdes_wgs84.shp")
+puntos_verdes_shp<-readOGR("puntos_verdes_wgs84.shp")
+
+mapa_reciclables<-leaflet()%>%
+  addProviderTiles("OpenStreetMap.Mapnik")%>%
+  addMarkers(data=campanas_verdes_shp,
+                   group = "contenedores para reciclables",
+                   clusterOptions = markerClusterOptions(removeOutsideVisibleBounds = F))%>%
+  addMarkers(data=puntos_verdes_shp, 
+             group = "puntos verdes",
+             clusterOptions = markerClusterOptions(removeOutsideVisibleBounds = F))%>%
+  addLayersControl(position = "bottomleft",
+                   overlayGroups = c("contenedores para reciclables", "puntos verdes"))
+mapa_reciclables
+
+```
+
